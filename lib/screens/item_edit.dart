@@ -6,6 +6,7 @@ import 'sale_page.dart';
 import '../models.dart';
 import '../ui.dart';
 import 'batch_page.dart';
+import 'copies_page.dart';
 import 'inventory.dart';
 import 'photo.dart';
 
@@ -116,6 +117,14 @@ class _ItemEditPageState extends State<ItemEditPage> {
             icon: const Icon(Icons.sell_outlined),
             label: const Text('記錄成交'),
           ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+          onPressed: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => CopiesPage(item.id))),
+          icon: const Icon(Icons.library_add_outlined),
+          label: const Text('我有幾張一樣的：同款加幾張'),
+        ),
         const FieldLabel('名稱'),
         TextField(controller: name),
         Row(children: [

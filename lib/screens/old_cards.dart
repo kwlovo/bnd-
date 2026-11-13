@@ -93,7 +93,7 @@ class _OldCardsPageState extends State<OldCardsPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('舊卡快速入庫')),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
-        const Text('以前收的卡不用記得價錢，先放進庫存，想起來再補。',
+        const Text('以前收的卡不用記得價錢，先放進庫存，想起來再補。同一款有幾張，按那一行的「同款再加一張」。',
             style: TextStyle(fontSize: 13, color: cSub)),
         const FieldLabel('類別（這批都是同一類）'),
         PickField(
@@ -185,6 +185,12 @@ class _OldCardsPageState extends State<OldCardsPage> {
                       decoration: const InputDecoration(hintText: 'HK\$'),
                     ),
                   ),
+                IconButton(
+                  tooltip: '同款再加一張',
+                  onPressed: () => setState(() =>
+                      rows.insert(k + 1, _Row(rows[k].member)..photo = rows[k].photo)),
+                  icon: const Icon(Icons.library_add_outlined),
+                ),
                 IconButton(
                   tooltip: '移除這張',
                   onPressed: rows.length == 1 ? null : () => setState(() => rows.removeAt(k)),
