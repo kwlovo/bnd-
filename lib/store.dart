@@ -510,6 +510,40 @@ class Store extends ChangeNotifier {
     }
   }
 
+  /// 同款的判斷：同一位成員、同一類別、同一個名字。
+  String copyKey(Item i) => '${i.member}|${i.category}|${titleOf(i)}';
+
+  /// 和這件同款、還沒賣出的全部（包括它自己），舊的在前。
+  List<Item> copiesOf(Item i) {
+    final k = copyKey(i);
+    return items.where((x) => x.status != '已售出' && copyKey(x) == k).toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+  }
+
+  /// 小卡直接加一張同款：成本不明、不記入記帳，之後可以點進去補價錢。
+  Item addCopy(Item src) {
+    final b = Batch(
+      id: newId(),
+      name: '${titleOf(src)} 同款',
+      type: BatchType.old,
+      date: '',
+      inLedger: false,
+    );
+    final it = Item(
+      id: newId(),
+      name: src.name,
+      member: src.member,
+      category: src.category,
+      batchId: b.id,
+      source: src.source,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    addBatchWithItems(b, [it]);
+    final p = photos[src.id];
+    if (p != null) setPhoto(it.id, p);
+    return it;
+  }
+
   /// 成員的年紀順序（0 = Sungho）；不在名單上的排最後。
   int memberRank(String m) {
     final k = members.indexOf(m);

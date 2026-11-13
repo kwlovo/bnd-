@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/money.dart';
 import '../main.dart';
 import '../models.dart';
 import '../ui.dart';
@@ -52,6 +53,58 @@ class _InventoryPageState extends State<InventoryPage> {
       if (!hay.contains(q.toLowerCase())) return false;
     }
     return true;
+  }
+
+  /// 小卡同款（同成員、同名、同狀態）合成一行顯示數量；其他類別每件分開一行。
+  List<List<Item>> _groupCards(List<Item> list) {
+    final out = <List<Item>>[];
+    final byKey = <String, List<Item>>{};
+    for (final i in list) {
+      if (i.category != '小卡') {
+        out.add([i]);
+        continue;
+      }
+      final k = '${store.copyKey(i)}|${i.status}';
+      final g = byKey[k];
+      if (g == null) {
+        out.add(byKey[k] = [i]);
+      } else {
+        g.add(i);
+      }
+    }
+    return out;
+  }
+
+  /// 點同款的那一行：列出每一張，可以點進去看各自的價錢。
+  void _openCopies(List<Item> g) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (c) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(c).height * 0.7),
+          child: ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), children: [
+            Text('${store.titleOf(g.first)} × ${g.length}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            for (var k = 0; k < g.length; k++)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: ItemThumb(g[k].member, g[k].category,
+                    size: 40, photo: store.photos[g[k].id]),
+                title: Text('第 ${k + 1} 張'),
+                subtitle: g[k].note.isEmpty ? null : Text(g[k].note, maxLines: 1),
+                trailing: costLabel(g[k]),
+                onTap: () {
+                  Navigator.pop(c);
+                  _push(ItemEditPage(g[k].id));
+                },
+              ),
+          ]),
+        ),
+      ),
+    );
   }
 
   void _push(Widget page) =>
@@ -334,8 +387,12 @@ class _InventoryPageState extends State<InventoryPage> {
                           _SeriesCard(s, onTap: () => _push(SeriesPage(s.id))),
                           const SizedBox(height: 8),
                         ],
-                        for (final i in loose) ...[
-                          ItemTile(i, onTap: () => _push(ItemEditPage(i.id))),
+                        for (final g in _groupCards(loose)) ...[
+                          ItemTile(g.first,
+                              copies: g,
+                              onTap: () => g.length == 1
+                                  ? _push(ItemEditPage(g.first.id))
+                                  : _openCopies(g)),
                           const SizedBox(height: 8),
                         ],
                       ],
@@ -347,19 +404,47 @@ class _InventoryPageState extends State<InventoryPage> {
 }
 
 class ItemTile extends StatelessWidget {
-  const ItemTile(this.item, {super.key, this.onTap});
+  const ItemTile(this.item, {super.key, this.onTap, this.copies});
   final Item item;
   final VoidCallback? onTap;
+
+  /// 小卡同款合成一行時，這一行代表的全部張數。
+  final List<Item>? copies;
+
+  int get count => copies?.length ?? 1;
+
+  /// 右邊的成本：一張照舊；多張時價錢一樣就寫「每張」，不一樣就寫合計。
+  Widget _cost() {
+    final g = copies;
+    if (g == null || g.length < 2) return costLabel(item);
+    final known = [for (final i in g) if (i.costCents != null) i.costCents!];
+    const st = TextStyle(fontSize: 14, fontWeight: FontWeight.w700);
+    if (known.isEmpty) return const Tag('成本不明', fg: cWarn, bg: Colors.white, dashed: true);
+    if (known.length == g.length && known.toSet().length == 1) {
+      return Text('HK\$ ${fmt(known.first)} /張', style: st);
+    }
+    final sum = known.fold<int>(0, (a, c) => a + c);
+    return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+      Text('合共 HK\$ ${fmt(sum)}', style: st),
+      if (known.length < g.length)
+        Text('${g.length - known.length} 張不明', style: const TextStyle(fontSize: 11, color: cWarn)),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
     final b = store.batchOf(item.batchId);
-    // 有品相的（例如娃娃）放最前面，同一位成員有幾件時方便分辨。
-    final cond = item.note.startsWith('品相：') ? item.note.split('\n').first : '';
+    // 不是小卡、又有同款的（例如幾隻娃娃），整段備註都放在首頁，方便分辨。
+    final hasTwins = item.category != '小卡' && store.copiesOf(item).length > 1;
+    final cond = hasTwins
+        ? item.note.replaceAll('\n', ' ')
+        : item.note.startsWith('品相：')
+            ? item.note.split('\n').first
+            : '';
     final sub = [
       if (cond.isNotEmpty) cond,
       if (item.source.isNotEmpty) item.source,
-      if (b != null) b.name,
+      if (b != null && count == 1) b.name,
     ].join(' · ');
     return Card2(
       onTap: onTap,
@@ -376,6 +461,10 @@ class ItemTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
               ),
+              if (count > 1) ...[
+                const SizedBox(width: 6),
+                Tag('× $count', fg: Colors.white, bg: cNavy),
+              ],
               const SizedBox(width: 6),
               Tag.status(item.status),
               if (store.notArrived(item)) ...[
@@ -393,13 +482,13 @@ class ItemTile extends StatelessWidget {
             ]),
             if (sub.isNotEmpty)
               Text(sub,
-                  maxLines: 1,
+                  maxLines: hasTwins ? 2 : 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12, color: cSub)),
           ]),
         ),
         const SizedBox(width: 8),
-        costLabel(item),
+        _cost(),
       ]),
     );
   }
