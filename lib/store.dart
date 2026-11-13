@@ -155,7 +155,7 @@ class Store extends ChangeNotifier {
       } catch (_) {}
       return null;
     }
-    if (bytes.length > 600000) return '這張相片太大，請先裁小一點再試';
+    if (bytes.length > 4000000) return '這張相片太大，請先裁小一點再試';
     try {
       await _box?.put(itemId, bytes);
     } catch (_) {
@@ -510,16 +510,17 @@ class Store extends ChangeNotifier {
     }
   }
 
+  /// 成員的年紀順序（0 = Sungho）；不在名單上的排最後。
+  int memberRank(String m) {
+    final k = members.indexOf(m);
+    return k < 0 ? members.length : k;
+  }
+
   /// 車裡的位永遠按成員順序排（Sungho、Riwoo…），同一位成員的保持加入的先後。
   void sortSlots(Group g) {
-    int rank(String m) {
-      final k = members.indexOf(m);
-      return k < 0 ? members.length : k;
-    }
-
     final indexed = [for (var k = 0; k < g.slots.length; k++) (k, g.slots[k])];
     indexed.sort((a, b) {
-      final r = rank(a.$2.member).compareTo(rank(b.$2.member));
+      final r = memberRank(a.$2.member).compareTo(memberRank(b.$2.member));
       return r != 0 ? r : a.$1.compareTo(b.$1);
     });
     g.slots

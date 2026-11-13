@@ -52,9 +52,9 @@ Future<String?> _askSource(BuildContext context, {bool remove = false}) =>
 Future<Uint8List?> _grab(String src, {required bool raw}) async {
   final x = await ImagePicker().pickImage(
     source: src == 'camera' ? ImageSource.camera : ImageSource.gallery,
-    maxWidth: 2400,
-    maxHeight: 2400,
-    imageQuality: 90,
+    maxWidth: 3000,
+    maxHeight: 3000,
+    imageQuality: 95,
   );
   if (x == null) return null;
   final bytes = await x.readAsBytes();

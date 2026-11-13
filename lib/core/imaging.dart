@@ -12,7 +12,7 @@ Future<ui.Image> decodeImage(Uint8List bytes) async {
 
 /// 取圖的一部分（不給就是整張），縮到最長邊不超過 [maxSide]，壓成 JPEG。
 Future<Uint8List> jpegFrom(ui.Image im,
-    {ui.Rect? src, int maxSide = 600, int quality = 72}) async {
+    {ui.Rect? src, int maxSide = 2000, int quality = 88}) async {
   src ??= ui.Rect.fromLTWH(0, 0, im.width.toDouble(), im.height.toDouble());
   final k = min(1.0, maxSide / max(src.width, src.height));
   final w = max(1, (src.width * k).round());

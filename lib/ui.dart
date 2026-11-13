@@ -181,7 +181,8 @@ class ItemThumb extends StatelessWidget {
       ? ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: Image.memory(photo!,
-              width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true),
+              width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true,
+              cacheWidth: (size * 3).round()),
         )
       : Container(
         width: size,

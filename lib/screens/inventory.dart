@@ -133,8 +133,12 @@ class _InventoryPageState extends State<InventoryPage> {
           final overdue = store.backupOverdueDays(DateTime.now());
           final waiting = all.where(store.notArrived).length;
           final unpaidShip = all.where(store.intlUnpaid).length;
+          // 按成員年紀順序排（Sungho、Riwoo、Jaehyun…），同一位成員裡新的在前。
           final shown = all.where(_match).toList()
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            ..sort((a, b) {
+              final r = store.memberRank(a.member).compareTo(store.memberRank(b.member));
+              return r != 0 ? r : b.createdAt.compareTo(a.createdAt);
+            });
           // 「單卡」列出每一件（包括屬於系列的）；「系列」只列系列卡片。
           final loose = showSeries ? <Item>[] : shown;
           final seriesCards = showSeries
@@ -350,7 +354,10 @@ class ItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final b = store.batchOf(item.batchId);
+    // 有品相的（例如娃娃）放最前面，同一位成員有幾件時方便分辨。
+    final cond = item.note.startsWith('品相：') ? item.note.split('\n').first : '';
     final sub = [
+      if (cond.isNotEmpty) cond,
       if (item.source.isNotEmpty) item.source,
       if (b != null) b.name,
     ].join(' · ');

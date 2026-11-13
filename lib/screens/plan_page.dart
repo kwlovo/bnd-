@@ -4,6 +4,7 @@ import '../core/money.dart';
 import '../main.dart';
 import '../models2.dart';
 import '../ui.dart';
+import 'bundle_page.dart';
 import 'item_form.dart' show today;
 import 'sale_page.dart';
 
@@ -39,6 +40,16 @@ class PlansPage extends StatelessWidget {
                                     '${p.price > 0 ? ' · 盤價 ${p.unit} ${fmt(p.price)}' : ' · 未填盤價'}'
                                     '${p.buyer.isEmpty ? '' : ' · ${p.buyer}'}',
                                     style: const TextStyle(fontSize: 13, color: cSub),
+                                  ),
+                                  // 盤裡有什麼，一眼看到。
+                                  Text(
+                                    [
+                                      for (final id in p.itemIds)
+                                        if (store.itemOf(id) case final i?) store.titleOf(i),
+                                    ].join('、'),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12, color: cInk),
                                   ),
                                 ]),
                           ),
@@ -132,6 +143,11 @@ class _PlanPageState extends State<PlanPage> {
           child: Column(children: [
             for (final i in list)
               Row(children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: ItemThumb(i.member, i.category, size: 40, photo: store.photos[i.id]),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(store.titleOf(i),
                       maxLines: 1,
@@ -153,13 +169,23 @@ class _PlanPageState extends State<PlanPage> {
               ]),
           ]),
         ),
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            '成本合計 HK\$ ${fmt(cost)}${unknown > 0 ? ' + $unknown 件不明' : ''}',
-            style: const TextStyle(fontSize: 12, color: cSub),
+        Row(children: [
+          Expanded(
+            child: Text(
+              '成本合計 HK\$ ${fmt(cost)}${unknown > 0 ? ' + $unknown 件不明' : ''}',
+              style: const TextStyle(fontSize: 12, color: cSub),
+            ),
           ),
-        ),
+          TextButton.icon(
+            onPressed: () async {
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => BundlePage(planId: p.id)));
+              setState(() {});
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('加更多'),
+          ),
+        ]),
         const FieldLabel('盤價'),
         Row(children: [
           SizedBox(
@@ -295,6 +321,20 @@ class _PlanPageState extends State<PlanPage> {
           child: Text(p.depositPaid
               ? '賣出了：成交（尾款 ${p.unit} ${fmt(p.balance)}）'
               : '賣出了：成交'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+          onPressed: () async {
+            if (await confirm(context, '拆開這個盤？',
+                '周邊不會刪除，只是不再放在一起，全部回到待售。'
+                    '${p.depositPaid ? '已收的定金請自己處理。' : ''}',
+                ok: '拆開')) {
+              if (context.mounted) Navigator.pop(context);
+              store.deletePlan(p);
+            }
+          },
+          child: const Text('不盤了：拆開這個盤'),
         ),
       ]),
     );

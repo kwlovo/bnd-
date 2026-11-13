@@ -81,7 +81,7 @@ class _GroupFlowPageState extends State<GroupFlowPage> {
 
   Future<void> _pickImage() async {
     final x = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, maxWidth: 400, imageQuality: 60);
+        .pickImage(source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
     if (x == null) return;
     g.image = base64Encode(await x.readAsBytes());
     _save();
