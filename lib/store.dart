@@ -212,6 +212,10 @@ class Store extends ChangeNotifier {
     manual..clear()..addAll(nm);
     supplies..clear()..addAll(nsu);
     groups..clear()..addAll(ng);
+    if (j['members'] != null) members = List<String>.from(j['members']);
+    for (final g in groups) {
+      sortSlots(g);
+    }
     final np2 = [for (final m in l('plans')) Plan.fromJson(m)];
     plans..clear()..addAll(np2);
     presets = {
@@ -506,8 +510,26 @@ class Store extends ChangeNotifier {
     }
   }
 
+  /// 車裡的位永遠按成員順序排（Sungho、Riwoo…），同一位成員的保持加入的先後。
+  void sortSlots(Group g) {
+    int rank(String m) {
+      final k = members.indexOf(m);
+      return k < 0 ? members.length : k;
+    }
+
+    final indexed = [for (var k = 0; k < g.slots.length; k++) (k, g.slots[k])];
+    indexed.sort((a, b) {
+      final r = rank(a.$2.member).compareTo(rank(b.$2.member));
+      return r != 0 ? r : a.$1.compareTo(b.$1);
+    });
+    g.slots
+      ..clear()
+      ..addAll([for (final x in indexed) x.$2]);
+  }
+
   void saveGroup(Group g) {
     if (!groups.contains(g)) groups.add(g);
+    sortSlots(g);
     syncGroupItems(g);
     commit();
   }
