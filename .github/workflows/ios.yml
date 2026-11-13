@@ -1,0 +1,38 @@
+# 在 GitHub 的 Mac 上把 app 打包成 iPhone 安裝檔（未簽名的 .ipa）。
+# 打包好之後到這次執行的頁面底部下載「merch-app-ipa」，再用 Sideloadly 裝進 iPhone。
+name: Build iPhone app
+
+on:
+  # 只在手動按「Run workflow」時才打包，平常不會自動跑。
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.50.0
+          cache: true
+
+      - run: flutter --version
+      - run: flutter pub get
+      - run: flutter test
+
+      # 不簽名，簽名留給 Sideloadly 用自己的 Apple ID 做。
+      - run: flutter build ios --release --no-codesign
+
+      - name: Package .ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qry merch-app.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: merch-app-ipa
+          path: merch-app.ipa

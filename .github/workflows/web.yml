@@ -1,0 +1,49 @@
+# 每次上傳新版本，自動打包網頁版並放到 GitHub Pages。
+# 放好之後，用 iPhone 的 Safari 打開網址，按「分享 › 加入主畫面」就可以當 app 用。
+name: Publish web app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.50.0
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter test
+
+      # GitHub Pages 的網址是 https://帳號.github.io/倉庫名/，所以路徑要帶倉庫名。
+      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
