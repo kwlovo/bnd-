@@ -20,8 +20,12 @@ Future<List<Uint8List>?> cropMany(BuildContext context,
 }
 
 class CropPage extends StatefulWidget {
-  const CropPage(this.raw, {super.key, required this.count, this.labels});
+  const CropPage(this.raw,
+      {super.key, required this.count, this.labels, this.single = false});
   final Uint8List raw;
+
+  /// true：只裁剪一張（不分格），用於單張相片。
+  final bool single;
 
   /// 想切出幾張（用來猜預設的格數）。
   final int count;
@@ -98,12 +102,15 @@ class _CropPageState extends State<CropPage> {
     final image = im;
     final n = rows * cols;
     return Scaffold(
-      appBar: AppBar(title: const Text('大圖切開')),
+      appBar: AppBar(title: Text(widget.single ? '裁剪相片' : '大圖切開')),
       body: image == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
-              const Text('調到每一格剛好框住一張卡。編號就是切出來的順序。',
-                  style: TextStyle(fontSize: 13, color: cSub)),
+              Text(
+                  widget.single
+                      ? '用下面四條滑桿把不要的邊裁掉，藍框裡面就是保留的部分。不用裁就直接按「完成」。'
+                      : '調到每一格剛好框住一張卡。編號就是切出來的順序。',
+                  style: const TextStyle(fontSize: 13, color: cSub)),
               const SizedBox(height: 8),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 420),
@@ -115,11 +122,13 @@ class _CropPageState extends State<CropPage> {
                       painter: _Grid(
                         [for (var k = 0; k < n; k++) _cell(k, 1, 1)],
                         widget.labels,
+                        numbered: !widget.single,
                       ),
                     ),
                   ]),
                 ),
               ),
+              if (!widget.single)
               Wrap(spacing: 12, children: [
                 _stepper('橫排', cols, (v) => cols = v),
                 _stepper('直排', rows, (v) => rows = v),
@@ -133,7 +142,11 @@ class _CropPageState extends State<CropPage> {
               FilledButton(
                 style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                 onPressed: busy ? null : _cut,
-                child: Text(busy ? '切圖中…' : '切成 $n 張'),
+                child: Text(busy
+                    ? '處理中…'
+                    : widget.single
+                        ? '完成'
+                        : '切成 $n 張'),
               ),
             ]),
     );
@@ -141,7 +154,10 @@ class _CropPageState extends State<CropPage> {
 }
 
 class _Grid extends CustomPainter {
-  _Grid(this.cells, this.labels);
+  _Grid(this.cells, this.labels, {this.numbered = true});
+
+  /// 格子上要不要寫編號（單張裁剪不用）。
+  final bool numbered;
 
   /// 每格的位置（0–1 的比例）。
   final List<Rect> cells;
@@ -168,6 +184,7 @@ class _Grid extends CustomPainter {
       final rc = Rect.fromLTWH(c.left * size.width, c.top * size.height,
           c.width * size.width, c.height * size.height);
       canvas.drawRect(rc, line);
+      if (!numbered) continue;
       final who = labels != null && k < labels!.length ? ' ${labels![k]}' : '';
       final tp = TextPainter(
         text: TextSpan(

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/imaging.dart';
+import 'crop_page.dart';
 import '../main.dart';
 import '../ui.dart';
 
@@ -29,6 +30,11 @@ Future<String?> _askSource(BuildContext context, {bool remove = false}) =>
             onPressed: () => Navigator.pop(c, 'gallery'),
             child: const Text('從相簿選'),
           ),
+          if (remove)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(c, 'crop'),
+              child: const Text('裁剪現有相片'),
+            ),
           if (remove)
             CupertinoActionSheetAction(
               isDestructiveAction: true,
@@ -55,33 +61,49 @@ Future<Uint8List?> _grab(String src, {required bool raw}) async {
   return raw ? bytes : shrinkPhoto(bytes);
 }
 
-/// 拍照或從相簿選一張。[raw] 為 true 時保留大圖（切圖用），否則縮小到適合儲存。
-Future<Uint8List?> pickPhoto(BuildContext context, {bool raw = false}) async {
-  final src = await _askSource(context);
+/// 打開裁剪畫面，返回裁好並縮小的相片；取消返回 null。
+Future<Uint8List?> cropOne(BuildContext context, Uint8List bytes) async {
+  final out = await Navigator.push<List<Uint8List>>(
+    context,
+    MaterialPageRoute(builder: (_) => CropPage(bytes, count: 1, single: true)),
+  );
+  return out == null || out.isEmpty ? null : out.first;
+}
+
+/// 拍照或從相簿選一張。[raw] 為 true 時保留大圖（切圖用）；
+/// 否則先讓用戶裁剪，再縮小到適合儲存。
+Future<Uint8List?> pickPhoto(BuildContext context,
+    {bool raw = false, String? sourceGiven}) async {
+  final src = sourceGiven ?? await _askSource(context);
   if (src == null) return null;
+  Uint8List? big;
   try {
-    return await _grab(src, raw: raw);
+    big = await _grab(src, raw: true);
   } catch (_) {
     if (context.mounted) _say(context, '讀不到這張相片');
     return null;
   }
+  if (big == null || raw || !context.mounted) return big;
+  return cropOne(context, big);
 }
 
 /// 為一件已存在的周邊拍照、從相簿選相片，或移除相片。
 Future<void> pickItemPhoto(BuildContext context, String itemId) async {
-  final act = await _askSource(context, remove: store.photos[itemId] != null);
-  if (act == null) return;
+  final has = store.photos[itemId];
+  final act = await _askSource(context, remove: has != null);
+  if (act == null || !context.mounted) return;
   String? err;
   if (act == 'remove') {
     err = await store.setPhoto(itemId, null);
+  } else if (act == 'crop') {
+    // 裁剪現有的相片。
+    final b = await cropOne(context, has!);
+    if (b == null) return;
+    err = await store.setPhoto(itemId, b);
   } else {
-    try {
-      final b = await _grab(act, raw: false);
-      if (b == null) return;
-      err = await store.setPhoto(itemId, b);
-    } catch (_) {
-      err = '讀不到這張相片';
-    }
+    final b = await pickPhoto(context, sourceGiven: act);
+    if (b == null) return;
+    err = await store.setPhoto(itemId, b);
   }
   if (err != null && context.mounted) _say(context, err);
 }
