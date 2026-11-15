@@ -720,6 +720,26 @@ class _GroupFlowPageState extends State<GroupFlowPage> {
           ),
         ),
       const SizedBox(height: 8),
+      // 付款一覽：已付幾人、未付幾人和金額。
+      if (g.slots.any((s) => s.sold))
+        Builder(builder: (_) {
+          final sold = g.slots.where((s) => s.sold).toList();
+          final unpaid = sold.where((s) => !s.paid).toList();
+          final owe = unpaid.fold<int>(0, (a, s) => a + s.price);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              unpaid.isEmpty
+                  ? '全部 ${sold.length} 人已付款'
+                  : '已付 ${sold.length - unpaid.length} 人 · 未付 ${unpaid.length} 人，'
+                      '共 HK\$ ${fmt(owe)}（點「未付」可標為已付）',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: unpaid.isEmpty ? cGood : cWarn),
+            ),
+          );
+        }),
       Card2(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         child: Column(children: [
@@ -762,8 +782,29 @@ class _GroupFlowPageState extends State<GroupFlowPage> {
                           Text(s.member,
                               style: const TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w700)),
-                          Text(s.self ? '我自留' : (s.buyer.isEmpty ? '剩位' : s.buyer),
-                              style: const TextStyle(fontSize: 12, color: cSub)),
+                          Row(children: [
+                            Flexible(
+                              child: Text(
+                                  s.self ? '我自留' : (s.buyer.isEmpty ? '剩位' : s.buyer),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12, color: cSub)),
+                            ),
+                            // 有車員的位直接看到付了沒有，點一下切換。
+                            if (s.sold) ...[
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () {
+                                  s.paid = !s.paid;
+                                  s.paidDate = s.paid ? today() : '';
+                                  _save();
+                                },
+                                child: s.paid
+                                    ? const Tag('已付', fg: cGood, bg: cGoodTint)
+                                    : const Tag('未付', fg: cWarn, bg: cWarnTint),
+                              ),
+                            ],
+                          ]),
                         ]),
                       ),
                     ),
