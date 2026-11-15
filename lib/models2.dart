@@ -313,6 +313,8 @@ class Group {
     List<CostLine>? costs,
     this.category = '小卡',
     this.image,
+    this.note = '',
+    this.deadline = '',
   })  : steps = steps ?? {},
         slots = slots ?? [],
         costs = costs ?? [];
@@ -322,6 +324,22 @@ class Group {
 
   /// 這台車的圖片（縮小後的 base64），開太多車時用來辨認。
   String? image;
+
+  /// 備註，例如截團要做的事。
+  String note;
+
+  /// 截團（要下單）的日期 yyyy-MM-dd；空白 = 沒設定。
+  String deadline;
+
+  /// 離截團還有幾天（0 = 今天，負數 = 已過）。沒設日期或已經下單就是 null，不用提醒。
+  int? daysToDeadline(DateTime now) {
+    if (deadline.isEmpty || steps.containsKey('下單')) return null;
+    final d = DateTime.tryParse(deadline);
+    if (d == null) return null;
+    return DateTime(d.year, d.month, d.day)
+        .difference(DateTime(now.year, now.month, now.day))
+        .inDays;
+  }
 
   /// true = 我是車主，false = 我是車員。
   bool owner;
@@ -402,6 +420,8 @@ class Group {
         'costs': [for (final c in costs) c.toJson()],
         'category': category,
         'image': image,
+        'note': note,
+        'deadline': deadline,
       };
   factory Group.fromJson(Map<String, dynamic> j) => Group(
         id: j['id'],
@@ -415,6 +435,8 @@ class Group {
         costs: [for (final m in (j['costs'] ?? []) as List) CostLine.fromJson(m)],
         category: j['category'] ?? '小卡',
         image: j['image'],
+        note: j['note'] ?? '',
+        deadline: j['deadline'] ?? '',
       );
 }
 
@@ -455,4 +477,15 @@ String renderTemplate(String tpl, Group g) {
               (s) => '${s.buyer}　${s.ship}　${s.postIn > 0 ? '補 HK\$ ${fmt(s.postIn)}' : (s.ship == '順豐' ? '到付' : '免郵費')}'))
       .replaceAll('＜寄出名單＞',
           lines(g.slots.where((s) => s.sold && s.sent), (s) => '${s.buyer}　${s.ship}'));
+}
+
+/// 截團提醒的文字；不用提醒就是 null。
+String? deadlineText(Group g, [DateTime? now]) {
+  final d = g.daysToDeadline(now ?? DateTime.now());
+  if (d == null) return null;
+  final day = g.deadline.substring(5).replaceAll('-', '/');
+  if (d < 0) return '已過截團 $day，還沒下單！';
+  if (d == 0) return '今天截團（$day），記得下單';
+  if (d == 1) return '明天截團（$day）';
+  return '$d 天後截團（$day）';
 }

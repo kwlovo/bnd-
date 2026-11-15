@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/groups_page.dart';
 import 'screens/inventory.dart';
@@ -23,6 +24,14 @@ class MerchApp extends StatelessWidget {
         title: '追星周邊管理',
         debugShowCheckedModeBanner: false,
         theme: appTheme(),
+        // 日期選擇、複製貼上等內建畫面都用繁體中文。
+        locale: const Locale.fromSubtags(
+            languageCode: 'zh', scriptCode: 'Hant', countryCode: 'HK'),
+        supportedLocales: const [
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant', countryCode: 'HK'),
+          Locale('en'),
+        ],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: const Home(),
       );
 }

@@ -9,6 +9,7 @@ import '../main.dart';
 import '../models.dart' show kShipMethods;
 import '../models2.dart';
 import '../ui.dart';
+import 'buyers_page.dart' show carsOf;
 import 'group_page.dart' show SlotPage;
 import 'item_form.dart' show today;
 import 'pack_picker.dart';
@@ -35,6 +36,7 @@ class _GroupFlowPageState extends State<GroupFlowPage> {
   String orderCurrency = 'HKD';
   final priceCtl = <String, TextEditingController>{};
   late final nameCtl = TextEditingController(text: g.name);
+  late final noteCtl = TextEditingController(text: g.note);
 
   /// 到貨時才決定郵寄方式：每位車員先預設平郵、補 $4、實付 $2.4，之後逐個改。
   void _arrive() {
@@ -589,6 +591,47 @@ class _GroupFlowPageState extends State<GroupFlowPage> {
           ]),
         ),
       ]),
+      const FieldLabel('截團日期（到了還沒下單會提醒你）'),
+      Row(children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              final now = DateTime.now();
+              final d = await showDatePicker(
+                context: context,
+                initialDate: DateTime.tryParse(g.deadline) ?? now,
+                firstDate: DateTime(now.year - 1),
+                lastDate: DateTime(now.year + 2),
+              );
+              if (d == null) return;
+              g.deadline = d.toIso8601String().substring(0, 10);
+              _save();
+            },
+            icon: const Icon(Icons.event),
+            label: Text(g.deadline.isEmpty ? '設定截團日期' : g.deadline),
+          ),
+        ),
+        if (g.deadline.isNotEmpty)
+          IconButton(
+            tooltip: '清除截團日期',
+            onPressed: () {
+              g.deadline = '';
+              _save();
+            },
+            icon: const Icon(Icons.close),
+          ),
+      ]),
+      const FieldLabel('備註'),
+      TextField(
+        controller: noteCtl,
+        maxLines: 3,
+        minLines: 1,
+        decoration: const InputDecoration(hintText: '例如：截團後記得下單、要問車員什麼'),
+        onChanged: (v) {
+          g.note = v;
+          store.saveGroup(g);
+        },
+      ),
       Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -843,7 +886,7 @@ class _GroupFlowPageState extends State<GroupFlowPage> {
                     ),
                     Expanded(
                       child: Text(
-                        s.self ? '我自留' : (s.buyer.isEmpty ? '剩位' : '${s.buyer} · ${s.source}'),
+                        s.self ? '我自留' : (s.buyer.isEmpty ? '剩位' : '${s.buyer} · ${s.source}${carsOf(s.buyer) > 1 ? ' · 也在另外 ${carsOf(s.buyer) - 1} 台車' : ''}'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1029,6 +1072,11 @@ class _GroupFlowPageState extends State<GroupFlowPage> {
                         TextSpan(
                             text: '  ${s.member} 位 · ${s.source}',
                             style: const TextStyle(fontSize: 12, color: cSub)),
+                        if (carsOf(s.buyer) > 1)
+                          TextSpan(
+                              text: '  也在另外 ${carsOf(s.buyer) - 1} 台車',
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700, color: cNavy)),
                       ]),
                     ),
                   ),
@@ -1177,6 +1225,18 @@ class _GroupFlowPageState extends State<GroupFlowPage> {
         ],
       ),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
+        // 截團快到或已過還沒下單，每一頁頂部都提醒；有備註也一直顯示。
+        if (deadlineText(g) case final t?)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Tag(t, fg: cWarn, bg: cWarnTint),
+          ),
+        if (g.note.trim().isNotEmpty && view != '開團')
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text('備註：${g.note.trim()}',
+                style: const TextStyle(fontSize: 13, color: cInk)),
+          ),
         _stepper(),
         const SizedBox(height: 6),
         if (view == '成本')

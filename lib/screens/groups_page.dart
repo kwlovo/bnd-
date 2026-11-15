@@ -7,6 +7,7 @@ import '../main.dart';
 import '../models.dart';
 import '../models2.dart';
 import '../ui.dart';
+import 'buyers_page.dart';
 import 'follow_page.dart';
 import 'group_flow.dart';
 import 'item_form.dart' show today;
@@ -118,6 +119,13 @@ class GroupsPage extends StatelessWidget {
                   child: Text('拼團',
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
                 ),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                      context, MaterialPageRoute(builder: (_) => const BuyersPage())),
+                  icon: const Icon(Icons.people_outline),
+                  label: const Text('車員'),
+                ),
+                const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: () => _create(context),
                   icon: const Icon(Icons.add),
@@ -130,6 +138,30 @@ class GroupsPage extends StatelessWidget {
                   ? const Center(
                       child: Text('還沒有車。按右上角開始。', style: TextStyle(color: cSub)))
                   : ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
+                      // 截團今天、明天或已過還沒下單的，放在最上面提醒。
+                      for (final g in mine)
+                        if ((g.daysToDeadline(DateTime.now()) ?? 99) <= 1)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Material(
+                              color: cWarnTint,
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => GroupFlowPage(g.id))),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
+                                  child: Text('「${g.name}」${deadlineText(g)}',
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: cWarn)),
+                                ),
+                              ),
+                            ),
+                          ),
                       if (mine.isNotEmpty) const _Head('我開的車（我是車主）'),
                       for (final g in mine) _GroupCard(g),
                       if (joined.isNotEmpty) const _Head('我跟的車（我是車員）'),
@@ -233,6 +265,17 @@ class _GroupCard extends StatelessWidget {
             '${g.owner ? ' · 差價 ${fmt(g.margin)}' : ''}',
             style: const TextStyle(fontSize: 13, color: cSub),
           ),
+          if (deadlineText(g) case final t?) ...[
+            const SizedBox(height: 6),
+            Tag(t, fg: cWarn, bg: cWarnTint),
+          ],
+          if (g.note.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text('備註：${g.note.trim()}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: cInk)),
+          ],
           if (unpaid > 0 || (g.owner && free > 0)) ...[
             const SizedBox(height: 6),
             Wrap(spacing: 6, children: [
