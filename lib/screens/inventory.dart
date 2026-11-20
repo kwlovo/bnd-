@@ -14,6 +14,7 @@ import 'item_edit.dart';
 import 'item_form.dart';
 import 'old_cards.dart';
 import 'plan_page.dart';
+import 'quick_sale.dart';
 import 'series_page.dart';
 
 class InventoryPage extends StatefulWidget {
@@ -123,6 +124,15 @@ class _InventoryPageState extends State<InventoryPage> {
             onTap: () {
               Navigator.pop(c);
               _push(const ItemFormPage());
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.sell_outlined),
+            title: const Text('只記出卡賺了多少'),
+            subtitle: const Text('不用先把卡放進庫存'),
+            onTap: () {
+              Navigator.pop(c);
+              showQuickSale(context);
             },
           ),
           ListTile(

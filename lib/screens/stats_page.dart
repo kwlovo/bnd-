@@ -32,11 +32,14 @@ class _StatsPageState extends State<StatsPage> {
           final stock = items.where((i) => i.status != '已售出').toList();
           final stockValue = stock.fold<int>(0, (a, i) => a + (i.costCents ?? 0));
           final sales = store.sales.where((s) => _in(s.date)).toList();
+          // 快速記的出卡（沒放進庫存的）也算進出卡利潤。
+          final quick = store.quick.where((q) => _in(q.date)).toList();
           final saleIds = {for (final s in sales) s.id};
           final sold = items.where((i) => saleIds.contains(i.saleId)).toList();
           // 成本不明的當成本 0，整筆實收都算利潤。
           final profit =
-              sold.fold<int>(0, (a, i) => a + i.soldCents! - (i.costCents ?? 0));
+              sold.fold<int>(0, (a, i) => a + i.soldCents! - (i.costCents ?? 0)) +
+              quick.fold<int>(0, (a, q) => a + q.profit);
           final unknownSold = sold.where((i) => i.costCents == null).toList();
           final unknownAll = items.where((i) => i.costCents == null).length;
           final fee = sales.where((s) => s.feeByMe).fold<int>(0, (a, s) => a + s.feeHkd);
@@ -69,6 +72,12 @@ class _StatsPageState extends State<StatsPage> {
             p[1] += s.receivedHkd;
             p[2] += its.fold<int>(0, (a, i) => a + i.soldCents! - (i.costCents ?? 0));
           }
+          for (final q in quick) {
+            final p = plats.putIfAbsent(q.platform.isEmpty ? '未填平台' : q.platform, () => [0, 0, 0]);
+            p[0] += 1;
+            p[1] += q.priceHkd;
+            p[2] += q.profit;
+          }
           // 類別
           final cats = <String, int>{};
           for (final i in items) {
@@ -99,7 +108,9 @@ class _StatsPageState extends State<StatsPage> {
             ]),
             const SizedBox(height: 8),
             Row(children: [
-              _tile('出卡利潤', signed(profit), sub: '已出 ${sold.length} 件', good: profit >= 0),
+              _tile('出卡利潤', signed(profit),
+                  sub: '已出 ${sold.length} 件${quick.isEmpty ? '' : ' + 快速記 ${quick.length} 筆'}',
+                  good: profit >= 0),
               const SizedBox(width: 8),
               _tile('郵包（郵費差價 − 包材）', signed(postSales + gPost), sub: '和出卡分開算'),
             ]),

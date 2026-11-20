@@ -18,6 +18,9 @@ class Store extends ChangeNotifier {
   final List<Series> series = [];
   final List<Sale> sales = [];
   final List<ManualEntry> manual = [];
+
+  /// 快速記的出卡（沒有對應庫存的）。
+  final List<QuickSale> quick = [];
   final List<Supply> supplies = [];
   final List<Group> groups = [];
 
@@ -181,6 +184,7 @@ class Store extends ChangeNotifier {
         'series': [for (final s in series) s.toJson()],
         'sales': [for (final s in sales) s.toJson()],
         'manual': [for (final m in manual) m.toJson()],
+        'quick': [for (final q in quick) q.toJson()],
         'supplies': [for (final s in supplies) s.toJson()],
         'groups': [for (final g in groups) g.toJson()],
         'plans': [for (final p in plans) p.toJson()],
@@ -210,6 +214,9 @@ class Store extends ChangeNotifier {
     series..clear()..addAll(ns);
     sales..clear()..addAll(nsa);
     manual..clear()..addAll(nm);
+    quick
+      ..clear()
+      ..addAll([for (final m in l('quick')) QuickSale.fromJson(m)]);
     supplies..clear()..addAll(nsu);
     groups..clear()..addAll(ng);
     if (j['members'] != null) members = List<String>.from(j['members']);
@@ -464,6 +471,16 @@ class Store extends ChangeNotifier {
     commit();
   }
 
+  void saveQuick(QuickSale q) {
+    if (!quick.contains(q)) quick.add(q);
+    commit();
+  }
+
+  void deleteQuick(String id) {
+    quick.removeWhere((q) => q.id == id);
+    commit();
+  }
+
   // ---------- 拼團 ----------
 
   /// 自留位（或我跟的車的位）入庫存；已入庫的會更新成本。
@@ -643,6 +660,20 @@ class Store extends ChangeNotifier {
     }
     for (final m in manual) {
       out.add(LedgerEntry(m.date, '其他', m.desc, '手動記', m.cents, manualId: m.id));
+    }
+    // 快速記的出卡：記收入；副標題寫賺了多少。
+    for (final q in quick) {
+      final earn = q.costHkd == null
+          ? '成本不明'
+          : '賺 ${q.profit >= 0 ? '' : '−'}HK\$ ${fmt(q.profit.abs())}';
+      out.add(LedgerEntry(
+        q.date,
+        '出卡',
+        q.desc.isEmpty ? '快速記出卡' : q.desc,
+        [if (q.platform.isNotEmpty) q.platform, earn].join(' · '),
+        q.priceHkd,
+        quickId: q.id,
+      ));
     }
     out.sort((a, b) => b.date.compareTo(a.date));
     return out;

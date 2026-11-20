@@ -5,6 +5,7 @@ import '../main.dart';
 import '../models.dart';
 import '../ui.dart';
 import 'item_form.dart' show today;
+import 'quick_sale.dart';
 
 /// 記帳：大部分由批次和成交自動產生，也可以手動記一筆。
 class LedgerPage extends StatefulWidget {
@@ -95,7 +96,13 @@ class _LedgerPageState extends State<LedgerPage> {
                   child: Text('記帳',
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
                 ),
-                FilledButton(onPressed: _add, child: const Text('記一筆')),
+                OutlinedButton(onPressed: _add, child: const Text('記一筆')),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: () => showQuickSale(context),
+                  icon: const Icon(Icons.sell_outlined),
+                  label: const Text('記出卡'),
+                ),
               ]),
             ),
             Padding(
@@ -156,7 +163,10 @@ class _LedgerPageState extends State<LedgerPage> {
                         final e = shown[k];
                         return Card2(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          onTap: e.manualId == null
+                          onTap: e.quickId != null
+                              ? () => showQuickSale(context,
+                                  existing: store.quick.firstWhere((q) => q.id == e.quickId))
+                              : e.manualId == null
                               ? null
                               : () async {
                                   if (await confirm(context, '刪除這筆帳？', '「${e.title}」會被刪除。',

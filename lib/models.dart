@@ -220,13 +220,17 @@ class ManualEntry {
 
 /// 記帳頁的一行。由批次、成交和手動帳即時算出，不另外儲存，所以來源改了帳也跟著改。
 class LedgerEntry {
-  LedgerEntry(this.date, this.category, this.title, this.sub, this.cents, {this.manualId});
+  LedgerEntry(this.date, this.category, this.title, this.sub, this.cents,
+      {this.manualId, this.quickId});
   final String date;
   final String category;
   final String title;
   final String sub;
   final int cents;
   final String? manualId;
+
+  /// 快速記的出卡，可以點來改或刪。
+  final String? quickId;
 }
 
 class Batch {
@@ -359,5 +363,56 @@ class Series {
         source: j['source'] ?? '',
         members: List<String>.from(j['members'] ?? const []),
         wish: j['wish'] == null ? null : List<bool>.from(j['wish']),
+      );
+}
+
+/// 快速記出卡：不用先把卡放進庫存，只記賣了多少、當初買成多少。
+class QuickSale {
+  QuickSale({
+    required this.id,
+    required this.date,
+    this.desc = '',
+    this.platform = '',
+    required this.priceMinor,
+    this.currency = 'HKD',
+    this.rate = 1,
+    this.costHkd,
+  });
+
+  final String id;
+  String date;
+  String desc;
+  String platform;
+
+  /// 賣了多少（原幣分）。
+  int priceMinor;
+  String currency;
+  double rate;
+
+  /// 當初買成多少（HKD 分）；null = 不記得，利潤當成本 0 算。
+  int? costHkd;
+
+  int get priceHkd => (priceMinor * rate).round();
+  int get profit => priceHkd - (costHkd ?? 0);
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'date': date,
+        'desc': desc,
+        'platform': platform,
+        'priceMinor': priceMinor,
+        'currency': currency,
+        'rate': rate,
+        'costHkd': costHkd,
+      };
+  factory QuickSale.fromJson(Map<String, dynamic> j) => QuickSale(
+        id: j['id'],
+        date: j['date'] ?? '',
+        desc: j['desc'] ?? '',
+        platform: j['platform'] ?? '',
+        priceMinor: j['priceMinor'] ?? 0,
+        currency: j['currency'] ?? 'HKD',
+        rate: (j['rate'] ?? 1).toDouble(),
+        costHkd: j['costHkd'],
       );
 }
