@@ -43,7 +43,8 @@ class _StatsPageState extends State<StatsPage> {
           final unknownSold = sold.where((i) => i.costCents == null).toList();
           final unknownAll = items.where((i) => i.costCents == null).length;
           final fee = sales.where((s) => s.feeByMe).fold<int>(0, (a, s) => a + s.feeHkd);
-          final postSales = sales.fold<int>(0, (a, s) => a + s.postNet);
+          final postSales = sales.fold<int>(0, (a, s) => a + s.postNet) +
+              quick.fold<int>(0, (a, q) => a + q.postNet);
           final groups = store.groups.where((g) => g.owner).toList();
           final gMargin = groups.fold<int>(0, (a, g) => a + g.margin);
           final gPost = groups.fold<int>(0, (a, g) => a + g.postNet);

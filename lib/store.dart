@@ -471,12 +471,19 @@ class Store extends ChangeNotifier {
     commit();
   }
 
-  void saveQuick(QuickSale q) {
+  /// 儲存快速出卡。[oldUses] 是改之前用的包材，先放回庫存再扣新的。
+  void saveQuick(QuickSale q, {List<Map<String, dynamic>> oldUses = const []}) {
+    consume([for (final m in oldUses) PackUse.fromJson(m)], -1);
+    consume([for (final m in q.uses) PackUse.fromJson(m)], 1);
     if (!quick.contains(q)) quick.add(q);
     commit();
   }
 
+  /// 刪除快速出卡，用過的包材放回庫存。
   void deleteQuick(String id) {
+    for (final q in quick.where((q) => q.id == id)) {
+      consume([for (final m in q.uses) PackUse.fromJson(m)], -1);
+    }
     quick.removeWhere((q) => q.id == id);
     commit();
   }
@@ -674,6 +681,14 @@ class Store extends ChangeNotifier {
         q.priceHkd,
         quickId: q.id,
       ));
+      // 郵費和出卡收支分開，記在「郵包」。
+      final what = q.desc.isEmpty ? '快速記出卡' : q.desc;
+      if (q.postIn > 0) {
+        out.add(LedgerEntry(q.date, '郵包', '收郵費（${q.ship}）', what, q.postIn, quickId: q.id));
+      }
+      if (q.postOut > 0) {
+        out.add(LedgerEntry(q.date, '郵包', '實付郵費（${q.ship}）', what, -q.postOut, quickId: q.id));
+      }
     }
     out.sort((a, b) => b.date.compareTo(a.date));
     return out;

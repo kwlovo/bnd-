@@ -4,7 +4,10 @@ import '../core/money.dart';
 import '../main.dart';
 import '../models.dart';
 import '../ui.dart';
+import '../models2.dart' show PackUse;
 import 'item_form.dart' show today;
+import 'pack_picker.dart';
+import 'sale_page.dart' show PostageFields;
 
 /// 快速記出卡：不用先把卡放進庫存，只記賣了多少、當初買成多少。
 /// 給 [existing] 就是改那一筆。
@@ -29,6 +32,14 @@ class _QuickSalePageState extends State<QuickSalePage> {
   late String platform = q?.platform ?? '';
   late String currency = q?.currency ?? 'HKD';
 
+  // 寄卡：交收方式、郵費（HK$）、打包用了什麼。全部可以不填。
+  late String ship = q?.ship ?? '';
+  late final postIn =
+      TextEditingController(text: (q?.postIn ?? 0) == 0 ? '' : fmt(q!.postIn));
+  late final postOut =
+      TextEditingController(text: (q?.postOut ?? 0) == 0 ? '' : fmt(q!.postOut));
+  late final uses = [for (final m in q?.uses ?? const []) PackUse.fromJson(m)];
+
   double get rate =>
       q != null && q!.currency == currency ? q!.rate : (store.rates[currency] ?? 1);
 
@@ -49,7 +60,14 @@ class _QuickSalePageState extends State<QuickSalePage> {
       ..currency = currency
       ..rate = rate
       ..costHkd = parseCents(cost.text);
-    store.saveQuick(x);
+    final oldUses = List.of(x.uses);
+    x
+      ..ship = ship
+      ..postIn = ship.isEmpty ? 0 : (parseCents(postIn.text) ?? 0)
+      ..postOut = ship.isEmpty ? 0 : (parseCents(postOut.text) ?? 0)
+      ..uses = [for (final u in uses) u.toJson()]
+      ..pack = store.packCostOf(uses);
+    store.saveQuick(x, oldUses: q == null ? const [] : oldUses);
     Navigator.pop(context);
   }
 
@@ -115,6 +133,67 @@ class _QuickSalePageState extends State<QuickSalePage> {
             style: TextStyle(
                 fontSize: 16, fontWeight: FontWeight.w700, color: earn >= 0 ? cGood : cWarn),
           ),
+        const SizedBox(height: 8),
+        Card2(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('寄卡（可不填）',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            const Text('選了交收方式就會記郵費。郵費差價和包材算在「郵包」，和出卡收入分開。',
+                style: TextStyle(fontSize: 12, color: cSub)),
+            if (ship.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Wrap(spacing: 6, children: [
+                  for (final m in kShipMethods)
+                    ActionChip(
+                      label: Text(m),
+                      onPressed: () => setState(() {
+                        ship = m;
+                        PostageFields.defaults(m, postIn, postOut);
+                      }),
+                    ),
+                ]),
+              )
+            else ...[
+              PostageFields(
+                ship: ship,
+                postIn: postIn,
+                postOut: postOut,
+                onShip: (v) => setState(() {
+                  ship = v;
+                  PostageFields.defaults(v, postIn, postOut);
+                }),
+                onChanged: () => setState(() {}),
+              ),
+              const FieldLabel('打包用了什麼'),
+              PackPicker(uses: uses, onChanged: () => setState(() {})),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(
+                  child: Builder(builder: (_) {
+                    final net = (parseCents(postIn.text) ?? 0) -
+                        (parseCents(postOut.text) ?? 0) -
+                        store.packCostOf(uses);
+                    return Text('郵包 ${net >= 0 ? '+' : '−'}HK\$ ${fmt(net.abs())}',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: net >= 0 ? cGood : cWarn));
+                  }),
+                ),
+                TextButton(
+                  onPressed: () => setState(() {
+                    ship = '';
+                    postIn.clear();
+                    postOut.clear();
+                    uses.clear();
+                  }),
+                  child: const Text('不記寄卡'),
+                ),
+              ]),
+            ],
+          ]),
+        ),
         const FieldLabel('在哪裡賣（可不選）'),
         Wrap(spacing: 6, runSpacing: 6, children: [
           for (final x in kPlatforms)

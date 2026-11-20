@@ -377,7 +377,12 @@ class QuickSale {
     this.currency = 'HKD',
     this.rate = 1,
     this.costHkd,
-  });
+    this.ship = '',
+    this.postIn = 0,
+    this.postOut = 0,
+    this.pack = 0,
+    List<Map<String, dynamic>>? uses,
+  }) : uses = uses ?? [];
 
   final String id;
   String date;
@@ -395,6 +400,20 @@ class QuickSale {
   int get priceHkd => (priceMinor * rate).round();
   int get profit => priceHkd - (costHkd ?? 0);
 
+  /// 交收方式（平郵、易寄取、順豐、面交）；空白 = 沒記。
+  String ship;
+
+  /// 收買家郵費、實付郵費、包材成本（HKD 分）。
+  int postIn;
+  int postOut;
+  int pack;
+
+  /// 打包用了哪些包材（PackUse 的 JSON）。
+  List<Map<String, dynamic>> uses;
+
+  /// 郵包 = 收的郵費 − 實付郵費 − 包材，和出卡收入分開算。
+  int get postNet => postIn - postOut - pack;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'date': date,
@@ -404,6 +423,11 @@ class QuickSale {
         'currency': currency,
         'rate': rate,
         'costHkd': costHkd,
+        'ship': ship,
+        'postIn': postIn,
+        'postOut': postOut,
+        'pack': pack,
+        'uses': uses,
       };
   factory QuickSale.fromJson(Map<String, dynamic> j) => QuickSale(
         id: j['id'],
@@ -414,5 +438,10 @@ class QuickSale {
         currency: j['currency'] ?? 'HKD',
         rate: (j['rate'] ?? 1).toDouble(),
         costHkd: j['costHkd'],
+        ship: j['ship'] ?? '',
+        postIn: j['postIn'] ?? 0,
+        postOut: j['postOut'] ?? 0,
+        pack: j['pack'] ?? 0,
+        uses: [for (final m in (j['uses'] ?? []) as List) Map<String, dynamic>.from(m)],
       );
 }
